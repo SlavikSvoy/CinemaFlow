@@ -1,0 +1,87 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: #ffffff;
+}
+
+h1,
+h2,
+h3 {
+  color: #ffffff;
+}
+
+p {
+  color: #cbd5f5;
+}
+
+nav {
+  display: flex;
+  justify-content: space-around;
+  background: #020617;
+  padding: 15px;
+  font-size: 20px;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+}
+
+nav a:hover {
+  color: #38bdf8;
+}
+
+/* картки фільмів */
+.movie-card {
+  background: #1e293b;
+  padding: 15px;
+  margin: 10px;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.movie-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
