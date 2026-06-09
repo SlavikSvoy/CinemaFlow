@@ -1,12 +1,8 @@
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'CinemaFlow',
-  password: process.env.DB_PASSWORD || '19112004',
-  port: process.env.DB_PORT || 5432,
-  ssl: process.env.DB_HOST ? { rejectUnauthorized: false } : false
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/CinemaFlow',
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
 module.exports = pool;
