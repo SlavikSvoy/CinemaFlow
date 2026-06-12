@@ -2506,3 +2506,269 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+/* ========================= */
+/* 🪑 СХЕМА ЗАЛУ ТА СПИСКИ */
+/* ========================= */
+
+.hall-visual-card {
+  background: rgba(30, 41, 59, 0.95);
+  border: 1px solid #334155;
+  border-radius: 24px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.24);
+}
+
+.hall-visual-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.hall-visual-header h3 {
+  font-size: 28px;
+  margin: 0;
+}
+
+.hall-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.hall-legend span {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #cbd5e1;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.legend-seat {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
+.legend-seat.free {
+  background: #334155;
+}
+
+.legend-seat.waiting {
+  background: #facc15;
+}
+
+.legend-seat.checked {
+  background: #22c55e;
+}
+
+.hall-screen {
+  width: min(520px, 92%);
+  margin: 0 auto 24px;
+  padding: 12px 0;
+  text-align: center;
+  background: linear-gradient(180deg, #64748b, #334155);
+  color: #e2e8f0;
+  border-radius: 0 0 100px 100px;
+  letter-spacing: 7px;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 20px 42px rgba(15, 23, 42, 0.85);
+}
+
+.hall-seats-map {
+  display: grid;
+  gap: 10px;
+  justify-content: center;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.hall-seat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: max-content;
+}
+
+.hall-row-label {
+  width: 24px;
+  color: #94a3b8;
+  font-weight: 800;
+  text-align: center;
+}
+
+.hall-seat {
+  width: 46px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid #475569;
+  color: #ffffff;
+  font-weight: 800;
+  cursor: default;
+  transition: 0.2s ease;
+}
+
+.hall-seat:hover {
+  transform: scale(1.08);
+}
+
+.hall-seat.free {
+  background: #334155;
+  color: #cbd5e1;
+}
+
+.hall-seat.waiting {
+  background: #facc15;
+  color: #422006;
+  border-color: #fde68a;
+}
+
+.hall-seat.checked {
+  background: #22c55e;
+  color: #052e16;
+  border-color: #86efac;
+}
+
+.hall-people-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.hall-people-card {
+  background: rgba(30, 41, 59, 0.95);
+  border: 1px solid #334155;
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
+}
+
+.hall-people-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.hall-people-header h3 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.hall-people-header span {
+  min-width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  border: 1px solid #334155;
+  background: #0f172a;
+}
+
+.hall-people-header.checked span {
+  color: #22c55e;
+  border-color: #22c55e;
+}
+
+.hall-people-header.waiting span {
+  color: #facc15;
+  border-color: #facc15;
+}
+
+.hall-people-list {
+  display: grid;
+  gap: 10px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.hall-person-item {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 13px 14px;
+}
+
+.hall-person-item strong {
+  display: block;
+  color: #ffffff;
+  margin-bottom: 5px;
+}
+
+.hall-person-item p {
+  margin: 0;
+  color: #94a3b8;
+  word-break: break-word;
+}
+
+.hall-person-item.checked {
+  border-left: 5px solid #22c55e;
+}
+
+.hall-person-item.waiting {
+  border-left: 5px solid #facc15;
+}
+
+.hall-list-empty {
+  margin: 0;
+  background: #0f172a;
+  border: 1px dashed #475569;
+  border-radius: 16px;
+  padding: 18px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+/* ========================= */
+/* 📱 АДАПТИВНІСТЬ СХЕМИ ЗАЛУ */
+/* ========================= */
+
+@media (max-width: 950px) {
+  .hall-visual-header {
+    flex-direction: column;
+  }
+
+  .hall-legend {
+    justify-content: flex-start;
+  }
+
+  .hall-people-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .hall-visual-card {
+    padding: 18px;
+  }
+
+  .hall-seat {
+    width: 40px;
+    height: 38px;
+    font-size: 12px;
+  }
+
+  .hall-screen {
+    letter-spacing: 5px;
+  }
+
+  .hall-people-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
