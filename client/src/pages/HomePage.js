@@ -94,16 +94,16 @@ export default function HomePage() {
 
         <div className="hero-image">
           <video
-  className="hero-banner hero-video"
-  autoPlay
-  muted
-  loop
-  playsInline
-  preload="metadata"
-  poster="/videos/cinemaflow-poster.jpg"
->
-  <source src="/videos/cinemaflow-banner.mp4" type="video/mp4" />
-</video>
+            className="hero-banner hero-video"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster="/videos/cinemaflow-poster.jpg"
+          >
+            <source src="/videos/cinemaflow-banner.mp4" type="video/mp4" />
+          </video>
         </div>
       </section>
 
