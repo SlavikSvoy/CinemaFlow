@@ -93,11 +93,17 @@ export default function HomePage() {
         </div>
 
         <div className="hero-image">
-          <img
-            src="/images/cinemaflow-banner.png"
-            alt="CinemaFlow банер"
-            className="hero-banner"
-          />
+          <video
+  className="hero-banner hero-video"
+  autoPlay
+  muted
+  loop
+  playsInline
+  preload="metadata"
+  poster="/videos/cinemaflow-poster.jpg"
+>
+  <source src="/videos/cinemaflow-banner.mp4" type="video/mp4" />
+</video>
         </div>
       </section>
 
