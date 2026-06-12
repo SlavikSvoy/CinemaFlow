@@ -92,7 +92,7 @@ export default function HomePage() {
           </a>
         </div>
 
-        <div className="hero-image">
+        <div className="hero-image hero-video-frame">
           <video
             className="hero-banner hero-video"
             autoPlay
