@@ -2772,3 +2772,9 @@ a {
     align-items: flex-start;
   }
 }
+
+.hero-video {
+  display: block;
+  object-fit: cover;
+  object-position: center;
+}
