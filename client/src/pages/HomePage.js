@@ -81,7 +81,7 @@ export default function HomePage() {
     <main>
       <section className="hero-section">
         <div className="hero-text">
-          <h1>GHBDSN</h1>
+          <h1>Ласкаво просимо до нашого кінотеатру</h1>
           <p>
             Обирайте фільми, бронюйте квитки та насолоджуйтесь переглядом у
             зручному форматі.
