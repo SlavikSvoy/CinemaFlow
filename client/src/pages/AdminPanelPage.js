@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../services/api";
 import "../index.css";
 
@@ -12,13 +13,11 @@ const fixPoster = (url) => {
 };
 
 export default function Admin() {
-  const logout = () => {
-    localStorage.removeItem("role");
-    window.location.href = "/login";
-  };
   const [title, setTitle] = useState("");
   const [duration, setDuration] = useState("");
   const [posterUrl, setPosterUrl] = useState("");
+  const [category, setCategory] = useState("");
+  const [ageRating, setAgeRating] = useState("0+");
 
   const [movies, setMovies] = useState([]);
   const [sessions, setSessions] = useState([]);
@@ -28,14 +27,38 @@ export default function Admin() {
   const [showTime, setShowTime] = useState("");
   const [message, setMessage] = useState("");
 
+  const [editingMovieId, setEditingMovieId] = useState(null);
+
+  const logout = () => {
+    localStorage.removeItem("role");
+    window.location.href = "/login";
+  };
+
+  const resetMovieForm = () => {
+    setTitle("");
+    setDuration("");
+    setPosterUrl("");
+    setCategory("");
+    setAgeRating("0+");
+    setEditingMovieId(null);
+  };
+
   const loadMovies = async () => {
-    const res = await api.get("/movies");
-    setMovies(res.data);
+    try {
+      const res = await api.get("/movies");
+      setMovies(res.data);
+    } catch (err) {
+      setMessage("Помилка завантаження фільмів");
+    }
   };
 
   const loadSessions = async () => {
-    const res = await api.get("/sessions");
-    setSessions(res.data);
+    try {
+      const res = await api.get("/sessions");
+      setSessions(res.data);
+    } catch (err) {
+      setMessage("Помилка завантаження сеансів");
+    }
   };
 
   useEffect(() => {
@@ -43,23 +66,45 @@ export default function Admin() {
     loadSessions();
   }, []);
 
-  const addMovie = async () => {
+  const addOrUpdateMovie = async () => {
     if (!title || !duration) {
       setMessage("Заповніть назву і тривалість");
       return;
     }
 
-    await api.post("/movies", {
+    const movieData = {
       title,
       duration: Number(duration),
       poster_url: fixPoster(posterUrl),
-    });
+      category: category || "Не вказано",
+      age_rating: ageRating || "0+",
+    };
 
-    setTitle("");
-    setDuration("");
-    setPosterUrl("");
-    setMessage("✅ Фільм додано");
-    loadMovies();
+    try {
+      if (editingMovieId) {
+        await api.put(`/movies/${editingMovieId}`, movieData);
+        setMessage("✅ Фільм оновлено");
+      } else {
+        await api.post("/movies", movieData);
+        setMessage("✅ Фільм додано");
+      }
+
+      resetMovieForm();
+      loadMovies();
+    } catch (err) {
+      setMessage(err.response?.data?.error || "Помилка збереження фільму");
+    }
+  };
+
+  const startEditMovie = (movie) => {
+    setEditingMovieId(movie.id);
+    setTitle(movie.title || "");
+    setDuration(movie.duration || "");
+    setPosterUrl(movie.poster_url || "");
+    setCategory(movie.category || "");
+    setAgeRating(movie.age_rating || "0+");
+    setMessage(`Редагування фільму: ${movie.title}`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const addSession = async () => {
@@ -68,17 +113,21 @@ export default function Admin() {
       return;
     }
 
-    await api.post("/sessions", {
-      movie_id: Number(movieId),
-      hall_id: Number(hallId),
-      show_time: showTime,
-    });
+    try {
+      await api.post("/sessions", {
+        movie_id: Number(movieId),
+        hall_id: Number(hallId),
+        show_time: showTime,
+      });
 
-    setMovieId("");
-    setHallId("1");
-    setShowTime("");
-    setMessage("✅ Сеанс створено");
-    loadSessions();
+      setMovieId("");
+      setHallId("1");
+      setShowTime("");
+      setMessage("✅ Сеанс створено");
+      loadSessions();
+    } catch (err) {
+      setMessage(err.response?.data?.error || "Помилка створення сеансу");
+    }
   };
 
   const deleteMovie = async (id) => {
@@ -93,24 +142,49 @@ export default function Admin() {
   };
 
   const deleteSession = async (id) => {
-    await api.delete(`/sessions/${id}`);
-    setMessage("🗑 Сеанс видалено");
-    loadSessions();
+    try {
+      await api.delete(`/sessions/${id}`);
+      setMessage("🗑 Сеанс видалено");
+      loadSessions();
+    } catch (err) {
+      setMessage(err.response?.data?.error || "Помилка видалення сеансу");
+    }
   };
 
   return (
     <div className="container">
-      <h1>⚙️ Адмін-панель</h1>
+      <div className="admin-header">
+        <div>
+          <h1>⚙️ Адмін-панель</h1>
+          <p>
+            Керування фільмами, сеансами та доступ до функцій контролера.
+          </p>
+        </div>
 
-      <button className="button" onClick={logout}>
-        Вийти
-      </button>
-      <h1>⚙️ Адмін-панель</h1>
+        <button className="logout-button" onClick={logout}>
+          Вийти
+        </button>
+      </div>
+
+      <div className="admin-card">
+        <h3>🧭 Швидкий доступ</h3>
+
+        <div className="admin-quick-actions">
+          <Link to="/scanner" className="button admin-action-link">
+            📷 QR-сканер
+          </Link>
+
+          <Link to="/control" className="button admin-action-link">
+            👮 Контроль залу
+          </Link>
+        </div>
+      </div>
+
       {message && <p className="admin-message">{message}</p>}
 
       <div className="admin-grid">
         <div className="admin-card">
-          <h3>➕ Додати фільм</h3>
+          <h3>{editingMovieId ? "✏️ Редагувати фільм" : "➕ Додати фільм"}</h3>
 
           <input
             className="input"
@@ -134,9 +208,37 @@ export default function Admin() {
             onChange={(e) => setPosterUrl(e.target.value)}
           />
 
-          <button className="button" onClick={addMovie}>
-            Додати фільм
+          <input
+            className="input"
+            placeholder="Жанр фільму, наприклад: фантастика"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          />
+
+          <select
+            className="input"
+            value={ageRating}
+            onChange={(e) => setAgeRating(e.target.value)}
+          >
+            <option value="0+">0+</option>
+            <option value="6+">6+</option>
+            <option value="12+">12+</option>
+            <option value="16+">16+</option>
+            <option value="18+">18+</option>
+          </select>
+
+          <button className="button" onClick={addOrUpdateMovie}>
+            {editingMovieId ? "Зберегти зміни" : "Додати фільм"}
           </button>
+
+          {editingMovieId && (
+            <button
+              className="button admin-cancel-button"
+              onClick={resetMovieForm}
+            >
+              Скасувати редагування
+            </button>
+          )}
         </div>
 
         <div className="admin-card">
@@ -182,17 +284,31 @@ export default function Admin() {
         <h3>📋 Список фільмів</h3>
 
         {movies.map((movie) => (
-          <div className="admin-list-item" key={movie.id}>
+          <div className="admin-list-item admin-movie-item" key={movie.id}>
             <span>
               #{movie.id} — {movie.title} ({movie.duration} хв)
+              <br />
+              <small>
+                Жанр: {movie.category || "Не вказано"} | Рейтинг:{" "}
+                {movie.age_rating || "0+"}
+              </small>
             </span>
 
-            <button
-              className="delete-button"
-              onClick={() => deleteMovie(movie.id)}
-            >
-              Видалити
-            </button>
+            <div className="admin-item-actions">
+              <button
+                className="button edit-button"
+                onClick={() => startEditMovie(movie)}
+              >
+                Редагувати
+              </button>
+
+              <button
+                className="delete-button"
+                onClick={() => deleteMovie(movie.id)}
+              >
+                Видалити
+              </button>
+            </div>
           </div>
         ))}
       </div>
