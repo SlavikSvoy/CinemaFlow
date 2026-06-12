@@ -168,4 +168,80 @@ router.get("/stats/:sessionId", async (req, res) => {
   }
 });
 
+router.get("/hall/:sessionId", async (req, res) => {
+  const { sessionId } = req.params;
+
+  try {
+    const sessionResult = await pool.query(
+      `
+      SELECT 
+        s.id,
+        s.show_time,
+        m.title,
+        h.name AS hall_name,
+        h.capacity
+      FROM sessions s
+      JOIN movies m ON s.movie_id = m.id
+      JOIN halls h ON s.hall_id = h.id
+      WHERE s.id = $1
+      `,
+      [sessionId],
+    );
+
+    if (sessionResult.rows.length === 0) {
+      return res.status(404).json({
+        error: "Сеанс не знайдено",
+      });
+    }
+
+    const bookingsResult = await pool.query(
+      `
+      SELECT
+        b.id,
+        b.session_id,
+        b.seat_number,
+        b.email AS customer_email,
+        b.is_used,
+        EXISTS (
+          SELECT 1
+          FROM check_ins ci
+          WHERE ci.ticket_id = b.id
+        ) AS checked_in
+      FROM bookings b
+      WHERE b.session_id = $1
+      ORDER BY b.seat_number
+      `,
+      [sessionId],
+    );
+
+    const bookings = bookingsResult.rows;
+
+    const sold = bookings.length;
+
+    const checked = bookings.filter((booking) => {
+      return booking.checked_in || booking.is_used;
+    }).length;
+
+    res.json({
+      session: sessionResult.rows[0],
+      sold,
+      checked,
+      difference: sold - checked,
+      bookings: bookings.map((booking) => ({
+        id: booking.id,
+        session_id: booking.session_id,
+        seat_number: booking.seat_number,
+        customer_email: booking.customer_email,
+        is_used: booking.is_used,
+        checked_in: booking.checked_in || booking.is_used,
+      })),
+    });
+  } catch (error) {
+    console.error("Hall control error:", error);
+    res.status(500).json({
+      error: "Помилка отримання контролю залу",
+    });
+  }
+});
+
 module.exports = router;
