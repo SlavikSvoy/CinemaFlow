@@ -50,7 +50,18 @@ router.get("/popular", async (req, res) => {
 // GET /movies
 router.get("/", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM movies ORDER BY id");
+    const result = await pool.query(`
+      SELECT
+        id,
+        title,
+        duration,
+        poster_url,
+        COALESCE(category, 'Не вказано') AS category,
+        COALESCE(age_rating, '0+') AS age_rating
+      FROM movies
+      ORDER BY id
+    `);
+
     res.json(result.rows);
   } catch (err) {
     console.error("Помилка отримання фільмів:", err);
@@ -66,17 +77,25 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   const { title, duration, poster_url, category, age_rating } = req.body;
 
+  if (!title || !duration) {
+    return res.status(400).json({
+      error: "Назва фільму та тривалість є обовʼязковими",
+    });
+  }
+
   try {
     const result = await pool.query(
       `
-      INSERT INTO movies (title, duration, poster_url, category, age_rating)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO movies 
+        (title, duration, poster_url, category, age_rating)
+      VALUES 
+        ($1, $2, $3, $4, $5)
       RETURNING *
       `,
       [
-        title,
-        duration,
-        poster_url,
+        title.trim(),
+        Number(duration),
+        poster_url || "",
         category || "Не вказано",
         age_rating || "0+",
       ],
@@ -88,6 +107,57 @@ router.post("/", async (req, res) => {
 
     res.status(500).json({
       error: "Помилка створення фільму",
+    });
+  }
+});
+
+// Редагування фільму
+// PUT /movies/:id
+router.put("/:id", async (req, res) => {
+  const { id } = req.params;
+  const { title, duration, poster_url, category, age_rating } = req.body;
+
+  if (!title || !duration) {
+    return res.status(400).json({
+      error: "Назва фільму та тривалість є обовʼязковими",
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+      UPDATE movies
+      SET
+        title = $1,
+        duration = $2,
+        poster_url = $3,
+        category = $4,
+        age_rating = $5
+      WHERE id = $6
+      RETURNING *
+      `,
+      [
+        title.trim(),
+        Number(duration),
+        poster_url || "",
+        category || "Не вказано",
+        age_rating || "0+",
+        id,
+      ],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: "Фільм не знайдено",
+      });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Помилка редагування фільму:", err);
+
+    res.status(500).json({
+      error: "Помилка редагування фільму",
     });
   }
 });
