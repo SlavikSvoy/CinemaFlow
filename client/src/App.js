@@ -17,6 +17,10 @@ export default function App() {
   const role = localStorage.getItem("role");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const isController = role === "controller";
+  const isAdmin = role === "admin";
+  const hasControlAccess = isAdmin || isController;
+
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
   };
@@ -55,18 +59,19 @@ export default function App() {
             </Link>
           )}
 
-          {role === "controller" && (
+          {hasControlAccess && (
             <>
               <Link to="/scanner" className="staff-link">
                 📷 Сканер
               </Link>
-              <Link to="/controller" className="staff-link">
+
+              <Link to="/control" className="staff-link">
                 👮 Контроль
               </Link>
             </>
           )}
 
-          {role === "admin" && (
+          {isAdmin && (
             <Link to="/admin" className="staff-link">
               ⚙️ Адмін
             </Link>
@@ -115,19 +120,19 @@ export default function App() {
               </Link>
             )}
 
-            {role === "controller" && (
+            {hasControlAccess && (
               <>
                 <Link to="/scanner" onClick={closeMobileMenu}>
                   📷 Сканер
                 </Link>
 
-                <Link to="/controller" onClick={closeMobileMenu}>
+                <Link to="/control" onClick={closeMobileMenu}>
                   👮 Контроль
                 </Link>
               </>
             )}
 
-            {role === "admin" && (
+            {isAdmin && (
               <Link to="/admin" onClick={closeMobileMenu}>
                 ⚙️ Адмін
               </Link>
@@ -152,28 +157,28 @@ export default function App() {
         <Route path="/about" element={<AboutPage />} />
 
         <Route
+          path="/admin"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <AdminPanelPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/scanner"
           element={
-            <ProtectedRoute allowedRoles={["controller"]}>
+            <ProtectedRoute roles={["admin", "controller"]}>
               <TicketScannerPage />
             </ProtectedRoute>
           }
         />
 
         <Route
-          path="/controller"
+          path="/control"
           element={
-            <ProtectedRoute allowedRoles={["controller"]}>
+            <ProtectedRoute roles={["admin", "controller"]}>
               <HallControlPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminPanelPage />
             </ProtectedRoute>
           }
         />
