@@ -155,7 +155,7 @@ export default function Admin() {
     setTitle(movie.title || "");
     setDuration(movie.duration || "");
     setPosterUrl(movie.poster_url || "");
-    setCategory(movie.category || "Не вказано");
+    setCategory(translateGenreToUkrainian(movie.category));
     setAgeRating(normalizeAgeRating(movie.age_rating));
 
     setEditingMovieId(null);
