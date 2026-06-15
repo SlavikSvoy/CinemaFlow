@@ -1,8 +1,6 @@
 const router = require("express").Router();
 const pool = require("../db");
 
-// Автоматичний пошук фільмів через OMDb API
-// GET /movies/import/search?title=Batman
 // Автоматичний пошук фільмів через TMDb API з підтримкою української мови
 // GET /movies/import/search?title=Бетмен
 router.get("/import/search", async (req, res) => {
@@ -23,12 +21,21 @@ router.get("/import/search", async (req, res) => {
       });
     }
 
-    const searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(
-      title.trim(),
-    )}&language=uk-UA&include_adult=false&page=1`;
+    const query = encodeURIComponent(title.trim());
 
-    const searchResponse = await fetch(searchUrl);
-    const searchData = await searchResponse.json();
+    // Спочатку шукаємо українською
+    let searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${query}&language=uk-UA&include_adult=false&page=1`;
+
+    let searchResponse = await fetch(searchUrl);
+    let searchData = await searchResponse.json();
+
+    // Якщо українською нічого не знайдено — пробуємо англійською
+    if (!searchData.results || searchData.results.length === 0) {
+      searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${query}&language=en-US&include_adult=false&page=1`;
+
+      searchResponse = await fetch(searchUrl);
+      searchData = await searchResponse.json();
+    }
 
     if (!searchData.results || searchData.results.length === 0) {
       return res.json([]);
@@ -38,10 +45,31 @@ router.get("/import/search", async (req, res) => {
 
     const detailedMovies = await Promise.all(
       movies.map(async (movie) => {
-        const detailUrl = `https://api.themoviedb.org/3/movie/${movie.id}?api_key=${apiKey}&language=uk-UA`;
+        const detailUrlUk = `https://api.themoviedb.org/3/movie/${movie.id}?api_key=${apiKey}&language=uk-UA`;
 
-        const detailResponse = await fetch(detailUrl);
-        const detail = await detailResponse.json();
+        const detailResponseUk = await fetch(detailUrlUk);
+        const detailUk = await detailResponseUk.json();
+
+        let detail = detailUk;
+
+        // Якщо український опис або назва відсутні — підтягуємо англійську версію як запасний варіант
+        if (!detailUk.title || !detailUk.overview) {
+          const detailUrlEn = `https://api.themoviedb.org/3/movie/${movie.id}?api_key=${apiKey}&language=en-US`;
+
+          const detailResponseEn = await fetch(detailUrlEn);
+          const detailEn = await detailResponseEn.json();
+
+          detail = {
+            ...detailEn,
+            ...detailUk,
+            title: detailUk.title || detailEn.title || detailEn.original_title || "",
+            overview: detailUk.overview || detailEn.overview || "",
+            genres:
+              detailUk.genres && detailUk.genres.length > 0
+                ? detailUk.genres
+                : detailEn.genres || [],
+          };
+        }
 
         const posterUrl = detail.poster_path
           ? `https://image.tmdb.org/t/p/w500${detail.poster_path}`
@@ -55,9 +83,7 @@ router.get("/import/search", async (req, res) => {
         return {
           external_id: String(detail.id),
           title: detail.title || detail.original_title || "",
-          year: detail.release_date
-            ? detail.release_date.slice(0, 4)
-            : "",
+          year: detail.release_date ? detail.release_date.slice(0, 4) : "",
           duration: detail.runtime || null,
           category: genres,
           age_rating: "0+",
@@ -70,53 +96,6 @@ router.get("/import/search", async (req, res) => {
     res.json(detailedMovies);
   } catch (error) {
     console.error("Помилка імпорту фільмів через TMDb:", error);
-
-    res.status(500).json({
-      message: "Не вдалося отримати дані про фільм",
-    });
-  }
-});
-    const searchUrl = `https://www.omdbapi.com/?apikey=${apiKey}&s=${encodeURIComponent(
-      title,
-    )}&type=movie`;
-
-    const searchResponse = await fetch(searchUrl);
-    const searchData = await searchResponse.json();
-
-    if (searchData.Response === "False") {
-      return res.json([]);
-    }
-
-    const movies = searchData.Search.slice(0, 5);
-
-    const detailedMovies = await Promise.all(
-      movies.map(async (movie) => {
-        const detailUrl = `https://www.omdbapi.com/?apikey=${apiKey}&i=${movie.imdbID}&plot=short`;
-
-        const detailResponse = await fetch(detailUrl);
-        const detail = await detailResponse.json();
-
-        const duration =
-          detail.Runtime && detail.Runtime !== "N/A"
-            ? parseInt(detail.Runtime.replace(" min", ""), 10)
-            : null;
-
-        return {
-          external_id: detail.imdbID,
-          title: detail.Title || "",
-          year: detail.Year || "",
-          duration: Number.isNaN(duration) ? null : duration,
-          category: detail.Genre && detail.Genre !== "N/A" ? detail.Genre : "",
-          age_rating: detail.Rated && detail.Rated !== "N/A" ? detail.Rated : "0+",
-          description: detail.Plot && detail.Plot !== "N/A" ? detail.Plot : "",
-          poster_url: detail.Poster && detail.Poster !== "N/A" ? detail.Poster : "",
-        };
-      }),
-    );
-
-    res.json(detailedMovies);
-  } catch (error) {
-    console.error("Помилка імпорту фільмів:", error);
 
     res.status(500).json({
       message: "Не вдалося отримати дані про фільм",
