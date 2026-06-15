@@ -12,6 +12,40 @@ const fixPoster = (url) => {
   );
 };
 
+const translateGenreToUkrainian = (genre) => {
+  if (!genre) return "Не вказано";
+
+  const dictionary = {
+    Action: "Бойовик",
+    Adventure: "Пригоди",
+    Animation: "Анімація",
+    Biography: "Біографія",
+    Comedy: "Комедія",
+    Crime: "Кримінал",
+    Documentary: "Документальний",
+    Drama: "Драма",
+    Family: "Сімейний",
+    Fantasy: "Фентезі",
+    History: "Історичний",
+    Horror: "Жахи",
+    Music: "Музичний",
+    Musical: "Мюзикл",
+    Mystery: "Детектив",
+    Romance: "Романтика",
+    "Sci-Fi": "Фантастика",
+    Sport: "Спорт",
+    Thriller: "Трилер",
+    War: "Військовий",
+    Western: "Вестерн",
+  };
+
+  return genre
+    .split(",")
+    .map((item) => item.trim())
+    .map((item) => dictionary[item] || item)
+    .join(", ");
+};
+
 const normalizeAgeRating = (rating) => {
   if (!rating) return "0+";
 
