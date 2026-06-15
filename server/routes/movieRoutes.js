@@ -1,6 +1,74 @@
 const router = require("express").Router();
 const pool = require("../db");
 
+// Автоматичний пошук фільмів через OMDb API
+// GET /movies/import/search?title=Batman
+router.get("/import/search", async (req, res) => {
+  try {
+    const { title } = req.query;
+
+    if (!title || title.trim().length < 2) {
+      return res.status(400).json({
+        message: "Введіть назву фільму для пошуку",
+      });
+    }
+
+    const apiKey = process.env.OMDB_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({
+        message: "OMDB_API_KEY не вказано на сервері",
+      });
+    }
+
+    const searchUrl = `https://www.omdbapi.com/?apikey=${apiKey}&s=${encodeURIComponent(
+      title,
+    )}&type=movie`;
+
+    const searchResponse = await fetch(searchUrl);
+    const searchData = await searchResponse.json();
+
+    if (searchData.Response === "False") {
+      return res.json([]);
+    }
+
+    const movies = searchData.Search.slice(0, 5);
+
+    const detailedMovies = await Promise.all(
+      movies.map(async (movie) => {
+        const detailUrl = `https://www.omdbapi.com/?apikey=${apiKey}&i=${movie.imdbID}&plot=short`;
+
+        const detailResponse = await fetch(detailUrl);
+        const detail = await detailResponse.json();
+
+        const duration =
+          detail.Runtime && detail.Runtime !== "N/A"
+            ? parseInt(detail.Runtime.replace(" min", ""), 10)
+            : null;
+
+        return {
+          external_id: detail.imdbID,
+          title: detail.Title || "",
+          year: detail.Year || "",
+          duration: Number.isNaN(duration) ? null : duration,
+          category: detail.Genre && detail.Genre !== "N/A" ? detail.Genre : "",
+          age_rating: detail.Rated && detail.Rated !== "N/A" ? detail.Rated : "0+",
+          description: detail.Plot && detail.Plot !== "N/A" ? detail.Plot : "",
+          poster_url: detail.Poster && detail.Poster !== "N/A" ? detail.Poster : "",
+        };
+      }),
+    );
+
+    res.json(detailedMovies);
+  } catch (error) {
+    console.error("Помилка імпорту фільмів:", error);
+
+    res.status(500).json({
+      message: "Не вдалося отримати дані про фільм",
+    });
+  }
+});
+
 // Популярні фільми за кількістю бронювань
 // GET /movies/popular
 router.get("/popular", async (req, res) => {
