@@ -12,6 +12,19 @@ const fixPoster = (url) => {
   );
 };
 
+const normalizeAgeRating = (rating) => {
+  if (!rating) return "0+";
+
+  const value = rating.toUpperCase();
+
+  if (value.includes("NC-17") || value === "R") return "18+";
+  if (value.includes("PG-13")) return "12+";
+  if (value === "PG") return "6+";
+  if (value === "G") return "0+";
+
+  return "0+";
+};
+
 export default function Admin() {
   const [title, setTitle] = useState("");
   const [duration, setDuration] = useState("");
@@ -28,6 +41,10 @@ export default function Admin() {
   const [message, setMessage] = useState("");
 
   const [editingMovieId, setEditingMovieId] = useState(null);
+
+  const [importTitle, setImportTitle] = useState("");
+  const [importResults, setImportResults] = useState([]);
+  const [importLoading, setImportLoading] = useState(false);
 
   const logout = () => {
     localStorage.removeItem("role");
@@ -66,6 +83,53 @@ export default function Admin() {
     loadSessions();
   }, []);
 
+  const searchMovieFromApi = async () => {
+    if (!importTitle.trim()) {
+      setMessage("Введіть назву фільму для автоматичного пошуку");
+      return;
+    }
+
+    try {
+      setImportLoading(true);
+      setImportResults([]);
+      setMessage("");
+
+      const res = await api.get("/movies/import/search", {
+        params: {
+          title: importTitle.trim(),
+        },
+      });
+
+      if (!res.data || res.data.length === 0) {
+        setMessage("Фільми за цією назвою не знайдено");
+        return;
+      }
+
+      setImportResults(res.data);
+      setMessage("✅ Фільми знайдено. Оберіть потрібний варіант");
+    } catch (err) {
+      setMessage(
+        err.response?.data?.message ||
+          "Помилка автоматичного пошуку фільму",
+      );
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const fillMovieFormFromApi = (movie) => {
+    setTitle(movie.title || "");
+    setDuration(movie.duration || "");
+    setPosterUrl(movie.poster_url || "");
+    setCategory(movie.category || "Не вказано");
+    setAgeRating(normalizeAgeRating(movie.age_rating));
+
+    setEditingMovieId(null);
+    setMessage(`✅ Дані фільму "${movie.title}" підставлено у форму`);
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const addOrUpdateMovie = async () => {
     if (!title || !duration) {
       setMessage("Заповніть назву і тривалість");
@@ -90,6 +154,8 @@ export default function Admin() {
       }
 
       resetMovieForm();
+      setImportResults([]);
+      setImportTitle("");
       loadMovies();
     } catch (err) {
       setMessage(err.response?.data?.error || "Помилка збереження фільму");
@@ -181,6 +247,81 @@ export default function Admin() {
       </div>
 
       {message && <p className="admin-message">{message}</p>}
+
+      <div className="admin-card movie-import-card">
+        <h3>🔎 Автоматичне додавання фільму</h3>
+        <p>
+          Введіть назву фільму, і система автоматично знайде інформацію через
+          OMDb API: назву, тривалість, жанр, віковий рейтинг і постер.
+        </p>
+
+        <div className="movie-import-search">
+          <input
+            className="input"
+            placeholder="Наприклад: Batman"
+            value={importTitle}
+            onChange={(e) => setImportTitle(e.target.value)}
+          />
+
+          <button
+            className="button"
+            onClick={searchMovieFromApi}
+            disabled={importLoading}
+          >
+            {importLoading ? "Пошук..." : "Знайти фільм"}
+          </button>
+        </div>
+
+        {importResults.length > 0 && (
+          <div className="movie-import-results">
+            {importResults.map((movie) => (
+              <div className="movie-import-result" key={movie.external_id}>
+                <div className="movie-import-poster">
+                  {movie.poster_url ? (
+                    <img src={movie.poster_url} alt={movie.title} />
+                  ) : (
+                    <span>Без постера</span>
+                  )}
+                </div>
+
+                <div className="movie-import-info">
+                  <h4>
+                    {movie.title} {movie.year ? `(${movie.year})` : ""}
+                  </h4>
+
+                  <p>
+                    <strong>Тривалість:</strong>{" "}
+                    {movie.duration ? `${movie.duration} хв` : "не вказано"}
+                  </p>
+
+                  <p>
+                    <strong>Жанр:</strong>{" "}
+                    {movie.category || "не вказано"}
+                  </p>
+
+                  <p>
+                    <strong>Рейтинг:</strong>{" "}
+                    {normalizeAgeRating(movie.age_rating)}
+                  </p>
+
+                  {movie.description && (
+                    <p className="movie-import-description">
+                      {movie.description}
+                    </p>
+                  )}
+
+                  <button
+                    className="button"
+                    onClick={() => fillMovieFormFromApi(movie)}
+                  >
+                    Заповнити форму
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="admin-grid">
         <div className="admin-card">
