@@ -13,7 +13,7 @@ const fixPoster = (url) => {
 };
 
 const translateGenreToUkrainian = (genre) => {
-  if (!genre) return "Не вказано";
+  if (!genre || genre === "N/A") return "Не вказано";
 
   const dictionary = {
     Action: "Бойовик",
@@ -330,7 +330,7 @@ export default function Admin() {
 
                   <p>
                     <strong>Жанр:</strong>{" "}
-                    {movie.category || "не вказано"}
+                    {translateGenreToUkrainian(movie.category)}
                   </p>
 
                   <p>
