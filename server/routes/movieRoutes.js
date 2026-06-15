@@ -3,6 +3,8 @@ const pool = require("../db");
 
 // Автоматичний пошук фільмів через OMDb API
 // GET /movies/import/search?title=Batman
+// Автоматичний пошук фільмів через TMDb API з підтримкою української мови
+// GET /movies/import/search?title=Бетмен
 router.get("/import/search", async (req, res) => {
   try {
     const { title } = req.query;
@@ -13,14 +15,67 @@ router.get("/import/search", async (req, res) => {
       });
     }
 
-    const apiKey = process.env.OMDB_API_KEY;
+    const apiKey = process.env.TMDB_API_KEY;
 
     if (!apiKey) {
       return res.status(500).json({
-        message: "OMDB_API_KEY не вказано на сервері",
+        message: "TMDB_API_KEY не вказано на сервері",
       });
     }
 
+    const searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(
+      title.trim(),
+    )}&language=uk-UA&include_adult=false&page=1`;
+
+    const searchResponse = await fetch(searchUrl);
+    const searchData = await searchResponse.json();
+
+    if (!searchData.results || searchData.results.length === 0) {
+      return res.json([]);
+    }
+
+    const movies = searchData.results.slice(0, 5);
+
+    const detailedMovies = await Promise.all(
+      movies.map(async (movie) => {
+        const detailUrl = `https://api.themoviedb.org/3/movie/${movie.id}?api_key=${apiKey}&language=uk-UA`;
+
+        const detailResponse = await fetch(detailUrl);
+        const detail = await detailResponse.json();
+
+        const posterUrl = detail.poster_path
+          ? `https://image.tmdb.org/t/p/w500${detail.poster_path}`
+          : "";
+
+        const genres =
+          detail.genres && detail.genres.length > 0
+            ? detail.genres.map((genre) => genre.name).join(", ")
+            : "Не вказано";
+
+        return {
+          external_id: String(detail.id),
+          title: detail.title || detail.original_title || "",
+          year: detail.release_date
+            ? detail.release_date.slice(0, 4)
+            : "",
+          duration: detail.runtime || null,
+          category: genres,
+          age_rating: "0+",
+          description: detail.overview || "",
+          poster_url: posterUrl,
+        };
+      }),
+    );
+
+    res.json(detailedMovies);
+  } catch (error) {
+    console.error("Помилка імпорту фільмів через TMDb:", error);
+
+    res.status(500).json({
+      message: "Не вдалося отримати дані про фільм",
+    });
+  }
+});
     const searchUrl = `https://www.omdbapi.com/?apikey=${apiKey}&s=${encodeURIComponent(
       title,
     )}&type=movie`;
