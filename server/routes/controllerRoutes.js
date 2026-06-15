@@ -22,3 +22,5 @@ router.get("/:sessionId", async (req, res) => {
     entered: entered.rows[0].count,
   });
 });
+
+module.exports = router;
