@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
 import api from "../services/api";
 import "../index.css";
+import { generateHallSeats } from "../services/hallLayout";
 
 export default function Booking() {
   const { movieId } = useParams();
@@ -14,8 +15,7 @@ export default function Booking() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
 
-  const rows = ["A", "B", "C", "D"];
-  const cols = [1, 2, 3, 4, 5, 6];
+  const seatMatrix = generateHallSeats();
 
   useEffect(() => {
     api.get("/sessions").then((res) => {
@@ -34,8 +34,12 @@ export default function Booking() {
   const loadOccupiedSeats = useCallback(async () => {
     if (!selectedSession) return;
 
-    const res = await api.get(`/bookings/session/${selectedSession}/seats`);
-    setOccupiedSeats(res.data);
+    try {
+      const res = await api.get(`/bookings/session/${selectedSession}/seats`);
+      setOccupiedSeats(res.data);
+    } catch (err) {
+      setError("Помилка завантаження зайнятих місць");
+    }
   }, [selectedSession]);
 
   useEffect(() => {
@@ -120,28 +124,28 @@ export default function Booking() {
       <div className="screen">ЕКРАН</div>
 
       <div className="seats-layout">
-        {rows.map((row) => (
-          <div key={row} className="row">
-            {cols.map((col) => {
-              const seat = row + col;
-              const isOccupied = occupiedSeats.includes(seat);
-              const isSelected = selectedSeat === seat;
+        {seatMatrix.map((rowSeats) => (
+          <div key={rowSeats[0].row} className="row">
+            {rowSeats.map((seat) => {
+              const seatLabel = seat.label;
+              const isOccupied = occupiedSeats.includes(seatLabel);
+              const isSelected = selectedSeat === seatLabel;
 
               return (
                 <div
-                  key={seat}
+                  key={seatLabel}
                   className={`seat ${isSelected ? "selected" : ""} ${
                     isOccupied ? "occupied" : ""
                   }`}
                   onClick={() => {
                     if (!isOccupied) {
-                      setSelectedSeat(seat);
+                      setSelectedSeat(seatLabel);
                       setTicket(null);
                       setError("");
                     }
                   }}
                 >
-                  {seat}
+                  {seatLabel}
                 </div>
               );
             })}
