@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
 import "../index.css";
+import { generateHallSeats } from "../services/hallLayout";
 
 export default function HallControlPage() {
   const [sessions, setSessions] = useState([]);
@@ -11,6 +12,7 @@ export default function HallControlPage() {
   const [loadingHall, setLoadingHall] = useState(false);
   const [error, setError] = useState("");
   const [lastUpdate, setLastUpdate] = useState(null);
+  const seatMatrix = generateHallSeats();
 
   useEffect(() => {
     loadSessions();
@@ -70,7 +72,7 @@ export default function HallControlPage() {
   };
 
   const selectedSession = sessions.find(
-    (s) => String(s.id) === String(selectedSessionId)
+    (s) => String(s.id) === String(selectedSessionId),
   );
 
   const bookings = hallData?.bookings || [];
@@ -102,54 +104,55 @@ export default function HallControlPage() {
     );
   };
 
+  const normalizeSeatNumber = (seatNumber) => {
+    if (!seatNumber) return "";
+
+    const value = String(seatNumber).trim().toUpperCase();
+
+    if (/^[A-ZА-Я]\d+$/.test(value)) {
+      return value;
+    }
+
+    if (/^\d+$/.test(value)) {
+      const flatSeats = seatMatrix.flat();
+      const index = Number(value) - 1;
+
+      if (flatSeats[index]) {
+        return flatSeats[index].label;
+      }
+    }
+
+    return value;
+  };
+
   const buildHallSeats = () => {
-    const capacity = Number(hallData?.session?.capacity || 100);
-    const hasLetterSeats = bookings.some((booking) =>
-      /[A-Za-zА-Яа-я]/.test(String(booking.seat_number || ""))
-    );
-
-    const seatsPerRow = hasLetterSeats ? 10 : 10;
-    const rowsCount = Math.ceil(capacity / seatsPerRow);
-
     const bookingMap = new Map();
 
     bookings.forEach((booking) => {
-      bookingMap.set(String(booking.seat_number), booking);
+      const seatLabel = normalizeSeatNumber(booking.seat_number);
+
+      if (seatLabel) {
+        bookingMap.set(seatLabel, booking);
+      }
     });
 
-    const rows = [];
-    let seatCounter = 1;
+    return seatMatrix.map((rowSeats) =>
+      rowSeats.map((seat) => {
+        const booking = bookingMap.get(seat.label);
 
-    for (let rowIndex = 0; rowIndex < rowsCount; rowIndex++) {
-      const row = [];
-
-      for (let seatIndex = 1; seatIndex <= seatsPerRow; seatIndex++) {
-        if (seatCounter > capacity) break;
-
-        const rowLetter = String.fromCharCode(65 + rowIndex);
-        const seatLabel = hasLetterSeats
-          ? `${rowLetter}${seatIndex}`
-          : String(seatCounter);
-
-        const booking = bookingMap.get(seatLabel);
-
-        row.push({
-          label: seatLabel,
+        return {
+          label: seat.label,
+          row: seat.row,
+          number: seat.number,
           booking,
           status: !booking
             ? "free"
             : booking.checked_in
               ? "checked"
               : "waiting",
-        });
-
-        seatCounter++;
-      }
-
-      rows.push(row);
-    }
-
-    return rows;
+        };
+      }),
+    );
   };
 
   const hallRows = hallData ? buildHallSeats() : [];
@@ -284,7 +287,9 @@ export default function HallControlPage() {
                 </span>
 
                 {lastUpdate && (
-                  <span>Оновлено: {lastUpdate.toLocaleTimeString("uk-UA")}</span>
+                  <span>
+                    Оновлено: {lastUpdate.toLocaleTimeString("uk-UA")}
+                  </span>
                 )}
               </div>
             </div>
@@ -312,11 +317,9 @@ export default function HallControlPage() {
               <div className="hall-screen">ЕКРАН</div>
 
               <div className="hall-seats-map">
-                {hallRows.map((row, rowIndex) => (
-                  <div className="hall-seat-row" key={rowIndex}>
-                    <span className="hall-row-label">
-                      {String.fromCharCode(65 + rowIndex)}
-                    </span>
+                {hallRows.map((row) => (
+                  <div className="hall-seat-row" key={row[0].row}>
+                    <span className="hall-row-label">{row[0].row}</span>
 
                     {row.map((seat) => (
                       <button
@@ -350,7 +353,10 @@ export default function HallControlPage() {
                 ) : (
                   <div className="hall-people-list">
                     {checkedPeople.map((booking) => (
-                      <div className="hall-person-item checked" key={booking.id}>
+                      <div
+                        className="hall-person-item checked"
+                        key={booking.id}
+                      >
                         <strong>Місце {booking.seat_number}</strong>
                         <p>{getBuyerName(booking)}</p>
                       </div>
@@ -372,7 +378,10 @@ export default function HallControlPage() {
                 ) : (
                   <div className="hall-people-list">
                     {waitingPeople.map((booking) => (
-                      <div className="hall-person-item waiting" key={booking.id}>
+                      <div
+                        className="hall-person-item waiting"
+                        key={booking.id}
+                      >
                         <strong>Місце {booking.seat_number}</strong>
                         <p>{getBuyerName(booking)}</p>
                       </div>
