@@ -1,197 +1,354 @@
-import { useParams } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import api from "../services/api";
 import "../index.css";
 import { generateHallSeats } from "../services/hallLayout";
 
-export default function Booking() {
-  const { movieId } = useParams();
-
+export default function HallControlPage() {
   const [sessions, setSessions] = useState([]);
-  const [selectedSession, setSelectedSession] = useState("");
-  const [selectedSeat, setSelectedSeat] = useState(null);
-  const [occupiedSeats, setOccupiedSeats] = useState([]);
-  const [ticket, setTicket] = useState(null);
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
+  const [selectedSessionId, setSelectedSessionId] = useState("");
+  const [controlData, setControlData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
   const seatMatrix = generateHallSeats();
 
-  useEffect(() => {
-    api.get("/sessions").then((res) => {
-      const movieSessions = res.data.filter(
-        (s) => String(s.movie_id) === String(movieId),
-      );
+  const normalizeSeatLabel = (seat) => {
+    if (!seat) return "";
 
-      setSessions(movieSessions);
-
-      if (movieSessions.length > 0) {
-        setSelectedSession(movieSessions[0].id);
-      }
-    });
-  }, [movieId]);
-
-  const loadOccupiedSeats = useCallback(async () => {
-    if (!selectedSession) return;
-
-    try {
-      const res = await api.get(`/bookings/session/${selectedSession}/seats`);
-      setOccupiedSeats(res.data);
-    } catch (err) {
-      setError("Помилка завантаження зайнятих місць");
+    if (typeof seat === "string") {
+      return seat;
     }
-  }, [selectedSession]);
 
-  useEffect(() => {
-    loadOccupiedSeats();
-  }, [loadOccupiedSeats]);
+    if (typeof seat === "number") {
+      return String(seat);
+    }
 
-  const isValidEmail = (value) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    if (seat.seat_number && typeof seat.seat_number === "string") {
+      return seat.seat_number;
+    }
+
+    if (seat.seatNumber && typeof seat.seatNumber === "string") {
+      return seat.seatNumber;
+    }
+
+    if (seat.seat && typeof seat.seat === "string") {
+      return seat.seat;
+    }
+
+    if (seat.label && typeof seat.label === "string") {
+      return seat.label;
+    }
+
+    if (seat.seat_row && seat.seat_number) {
+      return `${seat.seat_row}${seat.seat_number}`;
+    }
+
+    if (seat.row && seat.number) {
+      return `${seat.row}${seat.number}`;
+    }
+
+    return "";
   };
 
-  const book = async () => {
-    if (!selectedSession || !selectedSeat) return;
+  const getSoldSeats = () => {
+    if (!controlData) return [];
 
-    if (!email.trim()) {
-      setError("Введіть електронну пошту для отримання квитка");
-      return;
-    }
+    const source =
+      controlData.sold_seats ||
+      controlData.soldSeats ||
+      controlData.booked_seats ||
+      controlData.bookedSeats ||
+      [];
 
-    if (!isValidEmail(email)) {
-      setError("Некоректний формат електронної пошти");
-      return;
-    }
-
-    try {
-      setError("");
-
-      const res = await api.post("/bookings", {
-        session_id: selectedSession,
-        seat_number: selectedSeat,
-        email: email.trim(),
-      });
-
-      setTicket(res.data);
-      setSelectedSeat(null);
-      setEmail("");
-      await loadOccupiedSeats();
-    } catch (err) {
-      setError(err.response?.data?.message || "Помилка бронювання");
-    }
+    return source.map(normalizeSeatLabel).filter(Boolean);
   };
 
-  const activeSession = sessions.find(
-    (s) => String(s.id) === String(selectedSession),
+  const getCheckedSeats = () => {
+    if (!controlData) return [];
+
+    const source =
+      controlData.checked_seats ||
+      controlData.checkedSeats ||
+      controlData.passed_seats ||
+      controlData.passedSeats ||
+      controlData.checked_tickets ||
+      controlData.checkedTickets ||
+      [];
+
+    return source.map(normalizeSeatLabel).filter(Boolean);
+  };
+
+  const soldSeats = getSoldSeats();
+  const checkedSeats = getCheckedSeats();
+
+  const soldSeatSet = new Set(soldSeats);
+  const checkedSeatSet = new Set(checkedSeats);
+
+  const selectedSession = sessions.find(
+    (session) => String(session.id) === String(selectedSessionId),
   );
+
+  const soldCount = Number(
+    controlData?.sold_count ??
+      controlData?.soldCount ??
+      soldSeats.length ??
+      0,
+  );
+
+  const checkedCount = Number(
+    controlData?.checked_count ??
+      controlData?.checkedCount ??
+      checkedSeats.length ??
+      0,
+  );
+
+  const waitingCount = Math.max(soldCount - checkedCount, 0);
+  const progressPercent =
+    soldCount > 0 ? Math.round((checkedCount / soldCount) * 100) : 0;
+
+  const loadSessions = async () => {
+    try {
+      const res = await api.get("/sessions");
+      setSessions(res.data);
+
+      if (res.data.length > 0 && !selectedSessionId) {
+        setSelectedSessionId(res.data[0].id);
+      }
+    } catch (err) {
+      setMessage("Помилка завантаження сеансів");
+    }
+  };
+
+  const loadControlData = useCallback(async () => {
+    if (!selectedSessionId) return;
+
+    try {
+      setLoading(true);
+      setMessage("");
+
+      const res = await api.get(`/controller/${selectedSessionId}`);
+      setControlData(res.data);
+    } catch (err) {
+      setControlData(null);
+      setMessage(
+        err.response?.data?.error ||
+          "Помилка завантаження даних контролю залу",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedSessionId]);
+
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  useEffect(() => {
+    loadControlData();
+  }, [loadControlData]);
+
+  const getSeatStatus = (seatLabel) => {
+    if (checkedSeatSet.has(seatLabel)) {
+      return "checked";
+    }
+
+    if (soldSeatSet.has(seatLabel)) {
+      return "sold";
+    }
+
+    return "free";
+  };
+
+  const getSeatTitle = (seatLabel) => {
+    const status = getSeatStatus(seatLabel);
+
+    if (status === "checked") {
+      return `${seatLabel}: відвідувач уже пройшов контроль`;
+    }
+
+    if (status === "sold") {
+      return `${seatLabel}: квиток куплено, але відвідувач ще не пройшов`;
+    }
+
+    return `${seatLabel}: вільне місце`;
+  };
 
   return (
     <div className="container">
-      <h2>💺 Оберіть сеанс і місце</h2>
+      <h2>👮 Контроль залу</h2>
 
-      {activeSession && (
-        <div className="booking-movie-info">
-          <h3>{activeSession.title}</h3>
-          <p>🏛 {activeSession.hall_name}</p>
+      <div className="admin-card">
+        <h3>🎬 Оберіть сеанс</h3>
+
+        <select
+          className="input"
+          value={selectedSessionId}
+          onChange={(e) => {
+            setSelectedSessionId(e.target.value);
+            setControlData(null);
+            setMessage("");
+          }}
+        >
+          <option value="">Оберіть сеанс</option>
+
+          {sessions.map((session) => (
+            <option key={session.id} value={session.id}>
+              {session.title} — {session.hall_name} —{" "}
+              {new Date(session.show_time).toLocaleString()}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {message && <p className="admin-message">{message}</p>}
+
+      {selectedSession && (
+        <div className="admin-card">
+          <h3>{selectedSession.title}</h3>
+          <p>
+            🏛 {selectedSession.hall_name} | 🕒{" "}
+            {new Date(selectedSession.show_time).toLocaleString()}
+          </p>
         </div>
       )}
 
-      <div className="session-picker">
-        {sessions.map((s) => (
-          <button
-            key={s.id}
-            className={`session-time-button ${
-              String(selectedSession) === String(s.id) ? "active" : ""
-            }`}
-            onClick={() => {
-              setSelectedSession(s.id);
-              setSelectedSeat(null);
-              setTicket(null);
-              setEmail("");
-              setError("");
-            }}
-          >
-            🕒{" "}
-            {new Date(s.show_time).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-            <span>{s.hall_name}</span>
-          </button>
-        ))}
+      <div className="admin-grid">
+        <div className="admin-card">
+          <h3>🎟 Продано</h3>
+          <p className="control-big-number">{soldCount}</p>
+        </div>
+
+        <div className="admin-card">
+          <h3>✅ Пройшло</h3>
+          <p className="control-big-number">{checkedCount}</p>
+        </div>
+
+        <div className="admin-card">
+          <h3>⏳ Очікується</h3>
+          <p className="control-big-number">{waitingCount}</p>
+        </div>
+
+        <div className="admin-card">
+          <h3>📊 Заповненість</h3>
+          <p className="control-big-number">{progressPercent}%</p>
+        </div>
       </div>
 
-      <div className="screen">ЕКРАН</div>
+      <div className="control-progress-card">
+        <div className="control-progress-header">
+          <span>Фактична присутність у залі</span>
+          <span>
+            {checkedCount} / {soldCount}
+          </span>
+        </div>
 
-      <div className="seats-layout">
-        {seatMatrix.map((rowSeats) => (
-          <div key={rowSeats[0].row} className="row">
-            {rowSeats.map((seat) => {
-              const seatLabel = seat.label;
-              const isOccupied = occupiedSeats.includes(seatLabel);
-              const isSelected = selectedSeat === seatLabel;
+        <div className="control-progress-track">
+          <div
+            className="control-progress-fill"
+            style={{ width: `${progressPercent}%` }}
+          ></div>
+        </div>
 
-              return (
-                <div
-                  key={seatLabel}
-                  className={`seat ${isSelected ? "selected" : ""} ${
-                    isOccupied ? "occupied" : ""
-                  }`}
-                  onClick={() => {
-                    if (!isOccupied) {
-                      setSelectedSeat(seatLabel);
-                      setTicket(null);
-                      setError("");
-                    }
-                  }}
-                >
-                  {seatLabel}
-                </div>
-              );
-            })}
+        <p>
+          {waitingCount === 0
+            ? "Усі продані квитки вже перевірено"
+            : `Ще очікується відвідувачів: ${waitingCount}`}
+        </p>
+      </div>
+
+      <div className="control-hall-card">
+        <div className="control-hall-header">
+          <div>
+            <span className="control-section-label">СХЕМА ЗАЛУ</span>
+            <h3>Вигляд місць</h3>
           </div>
-        ))}
+
+          <div className="control-legend">
+            <span>
+              <i className="control-dot free"></i> Вільне
+            </span>
+            <span>
+              <i className="control-dot sold"></i> Куплено, не сидить
+            </span>
+            <span>
+              <i className="control-dot checked"></i> Уже сидить
+            </span>
+          </div>
+        </div>
+
+        <div className="screen">ЕКРАН</div>
+
+        <div className="control-seat-layout">
+          {seatMatrix.map((rowSeats) => (
+            <div className="control-seat-row" key={rowSeats[0].row}>
+              <span className="control-row-label">{rowSeats[0].row}</span>
+
+              {rowSeats.map((seat) => {
+                const seatLabel = seat.label;
+                const status = getSeatStatus(seatLabel);
+
+                return (
+                  <button
+                    key={seatLabel}
+                    type="button"
+                    title={getSeatTitle(seatLabel)}
+                    className={`control-seat ${status}`}
+                  >
+                    {seatLabel}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="legend">
-        <span className="legend-item free"></span> Вільне
-        <span className="legend-item selected-box"></span> Обране
-        <span className="legend-item occupied-box"></span> Зайняте
+      <div className="admin-grid">
+        <div className="admin-card">
+          <h3>✅ Уже сидять</h3>
+
+          {checkedSeats.length > 0 ? (
+            <div className="control-seat-list">
+              {checkedSeats.map((seat) => (
+                <span key={seat} className="control-seat-chip checked">
+                  {seat}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p>Ще ніхто не пройшов контроль.</p>
+          )}
+        </div>
+
+        <div className="admin-card">
+          <h3>⏳ Купили, але ще не сидять</h3>
+
+          {soldSeats.filter((seat) => !checkedSeatSet.has(seat)).length > 0 ? (
+            <div className="control-seat-list">
+              {soldSeats
+                .filter((seat) => !checkedSeatSet.has(seat))
+                .map((seat) => (
+                  <span key={seat} className="control-seat-chip sold">
+                    {seat}
+                  </span>
+                ))}
+            </div>
+          ) : (
+            <p>Немає відвідувачів, які очікуються.</p>
+          )}
+        </div>
       </div>
 
-      {selectedSeat && (
-        <div className="card">
-          <h3>Оформлення квитка</h3>
-          <p>💺 Обране місце: {selectedSeat}</p>
+      <div className="admin-quick-actions">
+        <Link to="/scanner" className="button admin-action-link">
+          Перейти до QR-сканера
+        </Link>
 
-          <input
-            className="input"
-            type="email"
-            placeholder="Email для отримання квитка"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              setError("");
-            }}
-          />
-
-          <button className="button" onClick={book}>
-            🎟 Забронювати
-          </button>
-        </div>
-      )}
-
-      {error && <p className="error">{error}</p>}
-
-      {ticket && (
-        <div className="card success-card">
-          <p>✅ Місце успішно заброньовано</p>
-          <p>🎟 ID квитка: {ticket.id}</p>
-          <p>💺 Місце: {ticket.seat_number}</p>
-          <p>📧 Квиток підготовлено для надсилання на: {ticket.email}</p>
-          <p>Тепер перейдіть у вкладку 🎫 та введіть ID квитка.</p>
-        </div>
-      )}
+        <button className="button" onClick={loadControlData} disabled={loading}>
+          {loading ? "Оновлення..." : "Повторно перевірити зал"}
+        </button>
+      </div>
     </div>
   );
 }
